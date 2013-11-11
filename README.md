@@ -41,10 +41,7 @@ MQ(Message Queue) Telemetry Transport(MQTT)是一个轻量级的基于经纪的�
 
 ###2.1固定头
 每条MQTT命令消息都包含一个固定的头。下面表格展示了固定头的格式：
-| 位            | 7       | 6       | 5       |   4     |          3           | 2        |1       | 0          |
-| --------      | -----:  | :----:  | -----:  | :----:  | -----:               | :----:  | :----:  | :----:      |
-| 字节1      |              消息类型          ||||   DUP flag     |Qos level    || RETAIN|
-| 字节2      |                                            剩余内容                                                      |
+![fixed header](http://ww3.sinaimg.cn/large/92540662jw1eahg7z7vz8j20gz02ijrj.jpg)
 
 ###第一个字节
     包括消息类型和标识（DUP，QoS level， RETAIN）字段
@@ -56,32 +53,11 @@ MQ(Message Queue) Telemetry Transport(MQTT)是一个轻量级的基于经纪的�
 ###1.消息类型
 位置：第一个字节，7-4bits
 是1个4bit的无符号值。
-Mnemonic|Enumeration|Description
----------------| ----------------: |:--------------|
-Reserved  |         0            |Reserved   |
-CONNECT |         1            |Client request to connect to Server|
-CONNACK |        2            |Connect Acknowledgment|
-PUBLISH    |         3            |   Publish message |
-PUBACK     |         4           |  Publish Acknowledgment|
-PUBREC      |        5           |   Publish Received (assured delivery part 1)|
-PUBREL      |        6            |  Publish Release (assured delivery part 2)|
-PUBCOMP |        7            |  Publish Complete (assured delivery part 3)|
-SUBSCRIBE|        8            | Client Subscribe request |
-SUBACK     |        9            | Subscribe Acknowledment |
-UNSUBSCRIBE|10            | Client Unsubscribe request|
-UNSUBACK |     11           | Unsub Acknowledgment|
-PINGREQ    |     12            | PING Request|
-PINGRESP  |      13            | PING Response|
-DISCONNECT|  14            | Client is Disconnecting |
-Reserved    |      15           |  Reserved|
+![message types](http://ww4.sinaimg.cn/large/92540662jw1eahg810ro9j20ek0g9gnz.jpg)
 
 ###2.标识
-第一个字节剩下的位数包括DUP，QoS 和 保留字。这几个位数的位置设置：
-Bit position | Name |Description|
-----------------| -------- :| :--------------:|
-3                  | DUP    | Duplicate delivery|
-2-1               | QoS    | Quality of Service |
-0                  | RETAIN | RETAIN flag |
+第一个字节剩下的位数包括DUP，QoS 和 保留字。这几个位数的位置设置：  
+![flags](http://ww4.sinaimg.cn/large/92540662jw1eahg80a0ibj208c0370su.jpg)
 
 ####DUP
 位置：字节1的第三位
