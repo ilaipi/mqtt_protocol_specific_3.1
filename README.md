@@ -36,4 +36,57 @@ MQ(Message Queue) Telemetry Transport(MQTT)是一个轻量级的基于经纪的�
 
 协议的版本号通过“CONNECT”数据包，仍然停留在3.x版本。MQTT V3的服务器可以接受V3.1的客户端的请求，只要请求中正确处理"剩余长度"字段，并且因此忽略了额外的安全问题。
 
+##2.消息格式
+每条MQTT命令消息都包含一个固定的头。有些消息也需要可变的头和有效载荷。下面的章节描述了消息头的每个部分：
 
+###2.1固定头
+每条MQTT命令消息都包含一个固定的头。下面表格展示了固定头的格式：
+| 位            | 7       | 6       | 5       |   4     |          3           | 2        |1       | 0          |
+| --------      | -----:  | :----:  | -----:  | :----:  | -----:               | :----:  | :----:  | :----:      |
+| 字节1      |              消息类型          ||||   DUP flag     |Qos level    || RETAIN|
+| 字节2      |                                            剩余内容                                                      |
+
+###第一个字节
+    包括消息类型和标识（DUP，QoS level， RETAIN）字段
+###第二个字节
+    （至少一个字节）包括剩余的信息字段
+
+所有的字段在下面的章节描述。所有的数据排序规则是顺序值越大越优先。1个16bit的字母出现在最重要的字节，后面是最不重要的字节。
+
+###1.消息类型
+位置：第一个字节，7-4bits
+是1个4bit的无符号值。
+Mnemonic|Enumeration|Description
+---------------| ----------------: |:--------------|
+Reserved  |         0            |Reserved   |
+CONNECT |         1            |Client request to connect to Server|
+CONNACK |        2            |Connect Acknowledgment|
+PUBLISH    |         3            |   Publish message |
+PUBACK     |         4           |  Publish Acknowledgment|
+PUBREC      |        5           |   Publish Received (assured delivery part 1)|
+PUBREL      |        6            |  Publish Release (assured delivery part 2)|
+PUBCOMP |        7            |  Publish Complete (assured delivery part 3)|
+SUBSCRIBE|        8            | Client Subscribe request |
+SUBACK     |        9            | Subscribe Acknowledment |
+UNSUBSCRIBE|10            | Client Unsubscribe request|
+UNSUBACK |     11           | Unsub Acknowledgment|
+PINGREQ    |     12            | PING Request|
+PINGRESP  |      13            | PING Response|
+DISCONNECT|  14            | Client is Disconnecting |
+Reserved    |      15           |  Reserved|
+
+###2.标识
+第一个字节剩下的位数包括DUP，QoS 和 保留字。这几个位数的位置设置：
+Bit position | Name |Description|
+----------------| -------- :| :--------------:|
+3                  | DUP    | Duplicate delivery|
+2-1               | QoS    | Quality of Service |
+0                  | RETAIN | RETAIN flag |
+
+####DUP
+位置：字节1的第三位
+当客户端或服务器尝试重新分发一个PUBLISH,PUBREL,SUBSCRIBE或者  
+UNSUBSCRIBE消息的时候设置这个标识。这可以让消息的QoS>0，并且需要认同。  
+如果设置了DUP位，变量头就包括一个消息的ID。
+
+消息的接收者可以把这个标识作为前一个消息是否已经接收到的标记。但是不应该依赖于检测重复。
