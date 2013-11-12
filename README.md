@@ -41,7 +41,10 @@ MQ(Message Queue) Telemetry Transport(MQTT)是一个轻量级的基于经纪的�
 
 ###2.1固定头
 每条MQTT命令消息都包含一个固定的头。下面表格展示了固定头的格式：
-![fixed header](http://ww3.sinaimg.cn/large/92540662jw1eahg7z7vz8j20gz02ijrj.jpg)
+| 位            | 7       | 6       | 5       |   4     |          3           | 2        |1       | 0          |
+| --------      | -----:  | :----:  | -----:  | :----:  | -----:               | :----:  | :----:  | :----:      |
+| 字节1      |              消息类型          ||||   DUP flag     |Qos level    || RETAIN|
+| 字节2      |                                            剩余内容                                                      |
 
 ###第一个字节
     包括消息类型和标识（DUP，QoS level， RETAIN）字段
@@ -53,16 +56,111 @@ MQ(Message Queue) Telemetry Transport(MQTT)是一个轻量级的基于经纪的�
 ###1.消息类型
 位置：第一个字节，7-4bits
 是1个4bit的无符号值。
-![message types](http://ww4.sinaimg.cn/large/92540662jw1eahg810ro9j20ek0g9gnz.jpg)
+Mnemonic|Enumeration|Description
+---------------| ----------------: |:--------------|
+Reserved  |         0            |Reserved   |
+CONNECT |         1            |Client request to connect to Server|
+CONNACK |        2            |Connect Acknowledgment|
+PUBLISH    |         3            |   Publish message |
+PUBACK     |         4           |  Publish Acknowledgment|
+PUBREC      |        5           |   Publish Received (assured delivery part 1)|
+PUBREL      |        6            |  Publish Release (assured delivery part 2)|
+PUBCOMP |        7            |  Publish Complete (assured delivery part 3)|
+SUBSCRIBE|        8            | Client Subscribe request |
+SUBACK     |        9            | Subscribe Acknowledment |
+UNSUBSCRIBE|10            | Client Unsubscribe request|
+UNSUBACK |     11           | Unsub Acknowledgment|
+PINGREQ    |     12            | PING Request|
+PINGRESP  |      13            | PING Response|
+DISCONNECT|  14            | Client is Disconnecting |
+Reserved    |      15           |  Reserved|
 
 ###2.标识
-第一个字节剩下的位数包括DUP，QoS 和 保留字。这几个位数的位置设置：  
-![flags](http://ww4.sinaimg.cn/large/92540662jw1eahg80a0ibj208c0370su.jpg)
+第一个字节剩下的位数包括DUP，QoS 和 保留字。这几个位数的位置设置：
+Bit position | Name |Description|
+----------------| -------- :| :--------------:|
+3                  | DUP    | Duplicate delivery|
+2-1               | QoS    | Quality of Service |
+0                  | RETAIN | RETAIN flag |
 
 ####DUP
-位置：字节1的第三位
+位置：字节1的第三位  
 当客户端或服务器尝试重新分发一个PUBLISH,PUBREL,SUBSCRIBE或者  
 UNSUBSCRIBE消息的时候设置这个标识。这可以让消息的QoS>0，并且需要认同。  
 如果设置了DUP位，变量头就包括一个消息的ID。
 
-消息的接收者可以把这个标识作为前一个消息是否已经接收到的标记。但是不应该依赖于检测重复。
+消息的接收者可以把这个标识作为前一个消息是否已经接收到的标记。但是不应该被依赖于检测重复。
+
+####QoS
+位置：字节1的1-2位  
+这个标识表示消息发布的服务质量。值和服务质量的对应关系：  
+![QoS](http://ww2.sinaimg.cn/large/92540662jw1eaiib4h5s5j20fq04it97.jpg)
+
+####RETAIN
+位置：字节1的第0位  
+这个标识只有发布消息时使用。当客户端发送一个PUBLISH消息到服务器，如果这个标识的值是1，  
+服务器就会一直持有这个消息，直到消息被分发到当前所有的用户。
+
+当一个主题上创建了一个新的订阅，这个主题最后遗留的消息将设置RETAIN标识并被发送到用户。  
+如果没有遗留的消息，什么都不会被发送。  
+
+这个标识在发布者发布基于“异常通知”的消息时是很有用的，也可能用于消息之间。  
+这让新用户及时的收到遗留的数据或者上一个正确的数据。
+
+当服务器发送一个“PUBLISH”消息到客户端作为一个在原始的"PUBLISH"消息到达时就已经存在的  
+“订阅”的响应，这时不应该设置“RETAIN”标识，不管原始的"PUBLISH"消息的“RETAIN”标识。  
+这就使得客户端可以区分将要接收的消息是遗留的还是那些“活着”的。
+
+服务器重启需要保存好遗留的消息。  
+
+当服务器收到一个0字节的命令或者RETAIN标识被设置为相同的主题时，可以删除遗留的消息。
+
+###第二个字节
+这个字节包含当前消息的剩余部分，包括变量头部和负载的数据。
+
+可变长度的编码方式使用一个单独的字节使消息可以达到127字节的长度上限。更长的消息被处理：  
+每个字节的7位编码剩余的数据长度，第8位显示的是出现在后面的字节。每个字节编码了128个值    
+和一个“继续位”。比如，10进制的数字64编码为hex 0x40，10进制的数字321（=65 + 2 * 128）  
+编码为2个字节，第一个字节更重要：65 + 128=193。注意第一位用来标识至少还有一个字节。  
+第二个字节是2。  
+
+协议限制最多4个字节，这样程序可以发送最大256Ｍ的消息。消息传输时数字的展现是：  
+0xFF,0xFF,0xFF,0x7F。
+
+下面表格展示剩余长度和增长的字节数：
+![remaining_length](http://ww1.sinaimg.cn/large/92540662jw1eaik06fmpyj20j604ljs3.jpg)
+
+把十进制的数字编码为可变长的编码方式是这样的：
+```
+do
+    digit = X MOD 128
+    X = X DIV 128
+    // if there are more digits to encode, set the top bit of this digit
+    if(X > 0)
+        digit = digit OR 0x80
+    endif
+    'output' digit
+while (X>0)
+```
+
+MOD 是求模的操作符(就像Ｃ语言的%)，  
+DIV是除法取整（就像Ｃ语言的/），
+OR 是按位或（就像Ｃ语言的|）。
+
+编码剩余长度字段的算法是：  
+```
+multiplier = 1
+value = 0
+do
+    digit = 'next digit from stream'
+    value += (digit AND 127) * multiplier
+    multiplier *= 128
+while((digit AND 128) != 0)
+```
+
+AND 是按位与（就想Ｃ语言的&）。
+
+这个算法执行完成后，值 就包含了剩余的长度。
+
+剩余长度的编码不是可变头部的一部分。用于编码剩余长度的字节不会改变剩余长度的值。  
+“extension bytes”的变量长度是固定头的一部分，不是可变头的。
